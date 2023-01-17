@@ -123,7 +123,7 @@ int main() {
         line((int)round(newCube[3][0] * 120) + 320, (int)round(newCube[3][1] * 120) + 240, (int)round(newCube[7][0] * 120) + 320, (int)round(newCube[7][1] * 120) + 240, 0x0000ffff);
         line((int)round(newCube[2][0] * 120) + 320, (int)round(newCube[2][1] * 120) + 240, (int)round(newCube[6][0] * 120) + 320, (int)round(newCube[6][1] * 120) + 240, 0x0000ffff);
         updateWindow();
-        usleep(10000);
+        usleep(16667);
     }
     return 0;
 }
