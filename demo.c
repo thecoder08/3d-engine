@@ -1,32 +1,64 @@
 #include "rotate.h"
+#define TINYOBJ_LOADER_C_IMPLEMENTATION 1
+#include "tinyobj_loader_c.h"
 #include <xgfx/window.h>
 #include <xgfx/drawing.h>
 #define __USE_MISC 1
 #include <math.h>
 #include <unistd.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
-int main() {
+// the below is from the tinyobjectloader-c on github
+static void get_file_data(void* ctx, const char* filename, const int is_mtl,
+                          const char* obj_filename, char** data, size_t* len) {
+  // NOTE: If you allocate the buffer with malloc(),
+  // You can define your own memory management struct and pass it through `ctx`
+  // to store the pointer and free memories at clean up stage(when you quit an
+  // app)
+  // This example uses mmap(), so no free() required.
+  (void)ctx;
+
+  if (!filename) {
+    (*data) = NULL;
+    (*len) = 0;
+    return;
+  }
+  struct stat sb;
+
+  int fd = open(filename, O_RDONLY);
+
+  fstat(fd, &sb);
+
+  (*data) = (char*)mmap(0, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+
+  (*len) = sb.st_size;
+}
+
+int main(int argc, char** argv) {
     initWindow(640, 480, "3D engine");
 
-    /*vec3 vertices[8];
-    vertices[0][0] = 1; vertices[0][1] = 1; vertices[0][2] = 1;
-    vertices[1][0] = -1; vertices[1][1] = 1; vertices[1][2] = 1;
-    vertices[2][0] = 1; vertices[2][1] = -1; vertices[2][2] = 1;
-    vertices[3][0] = -1; vertices[3][1] = -1; vertices[3][2] = 1;
-    vertices[4][0] = 1; vertices[4][1] = 1; vertices[4][2] = -1;
-    vertices[5][0] = -1; vertices[5][1] = 1; vertices[5][2] = -1;
-    vertices[6][0] = 1; vertices[6][1] = -1; vertices[6][2] = -1;
-    vertices[7][0] = -1; vertices[7][1] = -1; vertices[7][2] = -1;
-    int indices[] = {1, 2, 0, 1, 2, 3, 5, 6, 4, 5, 6, 7, 1, 7, 3, 1, 7, 5, 4, 2, 0, 4, 2, 6, 0, 5, 1, 0, 5, 4, 2, 7, 3, 2, 7, 6};*/
+    // loads the specified object file
+    tinyobj_attrib_t attrib;
+    tinyobj_shape_t* shapes = NULL;
+    size_t num_shapes;
+    tinyobj_material_t* materials = NULL;
+    size_t num_materials;
+    unsigned int flags = TINYOBJ_FLAG_TRIANGULATE;
+    if (tinyobj_parse_obj(&attrib, &shapes, &num_shapes, &materials, &num_materials, argv[1], get_file_data, NULL, flags) != TINYOBJ_SUCCESS) {
+        printf("Failed to load object file!\n");
+        return 0;
+    }
+    attrib.faces[0].v_idx;
+    vec3 vertices[attrib.num_vertices];
+    for (int i = 0; i < attrib.num_vertices; i++) {
+        vertices[i][0] = attrib.vertices[i * 3];
+        vertices[i][1] = attrib.vertices[i * 3 + 1];
+        vertices[i][2] = attrib.vertices[i * 3 + 2];
+    }
 
-    vec3 vertices[5];
-    vertices[0][0] = 1; vertices[0][1] = 1; vertices[0][2] = 1;
-    vertices[1][0] = -1; vertices[1][1] = 1; vertices[1][2] = 1;
-    vertices[2][0] = 1; vertices[2][1] = 1; vertices[2][2] = -1;
-    vertices[3][0] = -1; vertices[3][1] = 1; vertices[3][2] = -1;
-    vertices[4][0] = 0; vertices[4][1] = -1; vertices[4][2] = 0;
-    int indices[] = {0, 1, 2, 3, 1, 2, 4, 0, 1, 4, 1, 3, 4, 3, 2, 4, 2, 0};
-    
     float angleX = 0;
     float angleY = 0;
     float angleZ = 0;
@@ -112,8 +144,8 @@ int main() {
         if (angleZ >= M_PI * 2) {
                 angleX -= M_PI * 2;
         }
-        vec3 transformedVertices[sizeof(vertices)/sizeof(vertices[0])];
-        for (int i = 0; i < sizeof(vertices)/sizeof(vertices[0]); i++) {
+        vec3 transformedVertices[attrib.num_vertices];
+        for (int i = 0; i < attrib.num_vertices; i++) {
             vec3 tmp;
             vec3 tmp2;
             rotateX(vertices[i], angleX, tmp);
@@ -121,10 +153,10 @@ int main() {
             rotateZ(tmp2, angleZ, transformedVertices[i]);
         }
         rectangle(0, 0, 640, 480, 0x00000000);
-        for (int i = 0; i < sizeof(indices)/sizeof(indices[0]); i += 3) {
-            line((int)round(transformedVertices[indices[i]][0] * 120) + 320, (int)round(transformedVertices[indices[i]][1] * 120) + 240, (int)round(transformedVertices[indices[i + 1]][0] * 120) + 320, (int)round(transformedVertices[indices[i + 1]][1] * 120) + 240, 0x0000ffff);
-            line((int)round(transformedVertices[indices[i]][0] * 120) + 320, (int)round(transformedVertices[indices[i]][1] * 120) + 240, (int)round(transformedVertices[indices[i + 2]][0] * 120) + 320, (int)round(transformedVertices[indices[i + 2]][1] * 120) + 240, 0x0000ffff);
-            line((int)round(transformedVertices[indices[i + 2]][0] * 120) + 320, (int)round(transformedVertices[indices[i + 2]][1] * 120) + 240, (int)round(transformedVertices[indices[i + 1]][0] * 120) + 320, (int)round(transformedVertices[indices[i + 1]][1] * 120) + 240, 0x0000ffff);
+        for (int i = 0; i < attrib.num_faces; i += 3) {
+            line((int)round(transformedVertices[attrib.faces[i].v_idx][0] * 120) + 320, (int)round(transformedVertices[attrib.faces[i].v_idx][1] * -120) + 240, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][0] * 120) + 320, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][1] * -120) + 240, 0x0000ffff);
+            line((int)round(transformedVertices[attrib.faces[i].v_idx][0] * 120) + 320, (int)round(transformedVertices[attrib.faces[i].v_idx][1] * -120) + 240, (int)round(transformedVertices[attrib.faces[i + 2].v_idx][0] * 120) + 320, (int)round(transformedVertices[attrib.faces[i + 2].v_idx][1] * -120) + 240, 0x0000ffff);
+            line((int)round(transformedVertices[attrib.faces[i + 2].v_idx][0] * 120) + 320, (int)round(transformedVertices[attrib.faces[i + 2].v_idx][1] * -120) + 240, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][0] * 120) + 320, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][1] * -120) + 240, 0x0000ffff);
         }
         updateWindow();
         usleep(16667);
