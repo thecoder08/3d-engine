@@ -11,6 +11,13 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#define EVENT_BUFFER_SIZE 100
+XEvent eventBuffer[sizeof(XEvent) * EVENT_BUFFER_SIZE];
+
+#define WIDTH 640
+#define HEIGHT 480
+int depthBuffer[WIDTH * HEIGHT];
+
 // the below is from the tinyobjectloader-c on github
 static void get_file_data(void* ctx, const char* filename, const int is_mtl,
                           const char* obj_filename, char** data, size_t* len) {
@@ -37,8 +44,49 @@ static void get_file_data(void* ctx, const char* filename, const int is_mtl,
   (*len) = sb.st_size;
 }
 
+// from ChatGPT
+void drawFilledTriangle(int x1, int y1, int x2, int y2, int x3, int y3, int color, int depth)
+{
+    int minX = fmin(fmin(x1, x2), x3);
+    int maxX = fmax(fmax(x1, x2), x3);
+    int minY = fmin(fmin(y1, y2), y3);
+    int maxY = fmax(fmax(y1, y2), y3);
+
+    int area = ((x2 - x1) * (y3 - y1)) - ((y2 - y1) * (x3 - x1));
+
+    for (int x = minX; x <= maxX; x++)
+    {
+        for (int y = minY; y <= maxY; y++)
+        {
+            int w1 = ((x2 - x1) * (y - y1)) - ((y2 - y1) * (x - x1));
+            int w2 = ((x3 - x2) * (y - y2)) - ((y3 - y2) * (x - x2));
+            int w3 = ((x1 - x3) * (y - y3)) - ((y1 - y3) * (x - x3));
+
+            if ((w1 >= 0 && w2 >= 0 && w3 >= 0) || (w1 <= 0 && w2 <= 0 && w3 <= 0))
+            {
+                if (depth < depthBuffer[y * WIDTH + x]) {
+                    
+                    plot(x, y, color);
+                    // set buffer to depth
+                    depthBuffer[y * WIDTH + x] = depth;
+                }
+            }
+        }
+    }
+}
+
+void triCenter(vec3 a, vec3 b, vec3 c, vec3 center) {
+    center[0] = (a[0] + b[0] + c[0]) / 3;
+    center[1] = (a[1] + b[1] + c[1]) / 3;
+    center[2] = (a[2] + b[2] + c[2]) / 3;
+}
+
+float distance(vec3 object1, vec3 object2) {
+    return sqrt((object2[0] - object1[0]) * (object2[0] - object1[0]) + (object2[1] - object1[1]) * (object2[1] - object1[1]) + (object2[2] - object1[2]) * (object2[2] - object1[2]));
+}
+
 int main(int argc, char** argv) {
-    initWindow(640, 480, "3D engine");
+    initWindow(WIDTH, HEIGHT, "3D engine");
 
     // loads the specified object file
     tinyobj_attrib_t attrib;
@@ -51,7 +99,6 @@ int main(int argc, char** argv) {
         printf("Failed to load object file!\n");
         return 0;
     }
-    attrib.faces[0].v_idx;
     vec3 vertices[attrib.num_vertices];
     for (int i = 0; i < attrib.num_vertices; i++) {
         vertices[i][0] = attrib.vertices[i * 3];
@@ -68,13 +115,16 @@ int main(int argc, char** argv) {
     int rightPressed = 0;
     int homePressed = 0;
     int endPressed = 0;
+    int wireframe = 1;
+    vec3 lightPosition = {2, 2, -2};
+    int lightIntensity = 2;
     while(1) {
-        XEvent event;
-        int result = checkWindowEvents(&event);
-        if (result == 2) {
-            break;
-        }
-        if (result == 1) {
+        int eventsRead = checkWindowEvents(eventBuffer, EVENT_BUFFER_SIZE);
+        for (int i = 0; i < eventsRead; i++) {
+            XEvent event = eventBuffer[i];
+            if (event.type == ClosedWindow) {
+                return 0;
+            }
             if (event.type == KeyPress) {
                 if (event.xkey.keycode == 111) {
                     upPressed = 1;
@@ -93,6 +143,14 @@ int main(int argc, char** argv) {
                 }
                 if (event.xkey.keycode == 115) {
                     endPressed = 1;
+                }
+                if (event.xkey.keycode == 9) {
+                    if (wireframe) {
+                        wireframe = 0;
+                    }
+                    else {
+                        wireframe = 1;
+                    }
                 }
             }
             if (event.type == KeyRelease) {
@@ -153,13 +211,27 @@ int main(int argc, char** argv) {
             rotateZ(tmp2, angleZ, transformedVertices[i]);
         }
         rectangle(0, 0, 640, 480, 0x00000000);
+        for (int i=0; i<sizeof(depthBuffer)/sizeof(depthBuffer[0]); ++i) depthBuffer[i] = 0x7fffffff;
         for (int i = 0; i < attrib.num_faces; i += 3) {
-            line((int)round(transformedVertices[attrib.faces[i].v_idx][0] * 120) + 320, (int)round(transformedVertices[attrib.faces[i].v_idx][1] * -120) + 240, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][0] * 120) + 320, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][1] * -120) + 240, 0x0000ffff);
-            line((int)round(transformedVertices[attrib.faces[i].v_idx][0] * 120) + 320, (int)round(transformedVertices[attrib.faces[i].v_idx][1] * -120) + 240, (int)round(transformedVertices[attrib.faces[i + 2].v_idx][0] * 120) + 320, (int)round(transformedVertices[attrib.faces[i + 2].v_idx][1] * -120) + 240, 0x0000ffff);
-            line((int)round(transformedVertices[attrib.faces[i + 2].v_idx][0] * 120) + 320, (int)round(transformedVertices[attrib.faces[i + 2].v_idx][1] * -120) + 240, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][0] * 120) + 320, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][1] * -120) + 240, 0x0000ffff);
+            if (wireframe) {
+                line((int)round(transformedVertices[attrib.faces[i].v_idx][0] * 120) + WIDTH / 2, (int)round(transformedVertices[attrib.faces[i].v_idx][1] * -120) + HEIGHT / 2, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][0] * 120) + WIDTH / 2, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][1] * -120) + HEIGHT / 2, 0x0000ffff);
+                line((int)round(transformedVertices[attrib.faces[i].v_idx][0] * 120) + WIDTH / 2, (int)round(transformedVertices[attrib.faces[i].v_idx][1] * -120) + HEIGHT / 2, (int)round(transformedVertices[attrib.faces[i + 2].v_idx][0] * 120) + WIDTH / 2, (int)round(transformedVertices[attrib.faces[i + 2].v_idx][1] * -120) + HEIGHT / 2, 0x0000ffff);
+                line((int)round(transformedVertices[attrib.faces[i + 2].v_idx][0] * 120) + WIDTH / 2, (int)round(transformedVertices[attrib.faces[i + 2].v_idx][1] * -120) + HEIGHT / 2, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][0] * 120) + WIDTH / 2, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][1] * -120) + HEIGHT / 2, 0x0000ffff);
+            }
+            else {
+                unsigned char lightValue;
+                if ((int)round(distance(lightPosition, transformedVertices[attrib.faces[i].v_idx]) * (100 / lightIntensity)) > 255) {
+                    lightValue = 0;
+                }
+                else {
+                    lightValue = 255 - (unsigned char)round(distance(lightPosition, transformedVertices[attrib.faces[i].v_idx]) * (100 / lightIntensity));
+                }
+                vec3 center;
+                triCenter(transformedVertices[attrib.faces[i].v_idx], transformedVertices[attrib.faces[i + 1].v_idx], transformedVertices[attrib.faces[i + 2].v_idx], center);
+                drawFilledTriangle((int)round(transformedVertices[attrib.faces[i].v_idx][0] * 120) + WIDTH / 2, (int)round(transformedVertices[attrib.faces[i].v_idx][1] * -120) + HEIGHT / 2, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][0] * 120) + WIDTH / 2, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][1] * -120) + HEIGHT / 2, (int)round(transformedVertices[attrib.faces[i + 2].v_idx][0] * 120) + WIDTH / 2, (int)round(transformedVertices[attrib.faces[i + 2].v_idx][1] * -120) + HEIGHT / 2, (lightValue << 8) + lightValue, (int)(center[2] * 120));
+            }
         }
         updateWindow();
         usleep(16667);
     }
-    return 0;
 }
