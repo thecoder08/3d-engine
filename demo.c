@@ -64,11 +64,11 @@ void drawFilledTriangle(int x1, int y1, int x2, int y2, int x3, int y3, int colo
 
             if ((w1 >= 0 && w2 >= 0 && w3 >= 0) || (w1 <= 0 && w2 <= 0 && w3 <= 0))
             {
-                if (depth < depthBuffer[y * WIDTH + x]) {
-                    
-                    plot(x, y, color);
-                    // set buffer to depth
-                    depthBuffer[y * WIDTH + x] = depth;
+                if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) {
+                    if (depth < depthBuffer[y * WIDTH + x]) {
+                        plot(x, y, color);
+                        depthBuffer[y * WIDTH + x] = depth;
+                    }
                 }
             }
         }
