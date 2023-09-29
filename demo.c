@@ -5,7 +5,6 @@
 #include <xgfx/drawing.h>
 #define __USE_MISC 1
 #include <math.h>
-#include <unistd.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -115,7 +114,7 @@ int main(int argc, char** argv) {
     int rightPressed = 0;
     int homePressed = 0;
     int endPressed = 0;
-    int wireframe = 1;
+    int wireframe = 0;
     vec3 lightPosition = {2, 2, -2};
     int lightIntensity = 2;
     while(1) {
@@ -232,6 +231,5 @@ int main(int argc, char** argv) {
             }
         }
         updateWindow();
-        usleep(16667);
     }
 }
