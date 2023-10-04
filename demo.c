@@ -11,7 +11,7 @@
 #include <fcntl.h>
 
 #define EVENT_BUFFER_SIZE 100
-XEvent eventBuffer[sizeof(XEvent) * EVENT_BUFFER_SIZE];
+XEvent eventBuffer[EVENT_BUFFER_SIZE];
 
 #define WIDTH 640
 #define HEIGHT 480
@@ -218,13 +218,15 @@ int main(int argc, char** argv) {
                 line((int)round(transformedVertices[attrib.faces[i + 2].v_idx][0] * 120) + WIDTH / 2, (int)round(transformedVertices[attrib.faces[i + 2].v_idx][1] * -120) + HEIGHT / 2, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][0] * 120) + WIDTH / 2, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][1] * -120) + HEIGHT / 2, 0x0000ffff);
             }
             else {
-                unsigned char lightValue;
-                if ((int)round(distance(lightPosition, transformedVertices[attrib.faces[i].v_idx]) * (100 / lightIntensity)) > 255) {
-                    lightValue = 0;
+                int lightValueSum = 0;
+                for (int j = 0; j < 3; j++) {
+                    unsigned char vertexLightValue = 0;
+                    if ((int)round(distance(lightPosition, transformedVertices[attrib.faces[i + j].v_idx]) * (100 / lightIntensity)) <= 255) {
+                        vertexLightValue = 255 - (unsigned char)round(distance(lightPosition, transformedVertices[attrib.faces[i + j].v_idx]) * (100 / lightIntensity));
+                    }
+                    lightValueSum += vertexLightValue;
                 }
-                else {
-                    lightValue = 255 - (unsigned char)round(distance(lightPosition, transformedVertices[attrib.faces[i].v_idx]) * (100 / lightIntensity));
-                }
+                unsigned char lightValue = lightValueSum / 3;
                 vec3 center;
                 triCenter(transformedVertices[attrib.faces[i].v_idx], transformedVertices[attrib.faces[i + 1].v_idx], transformedVertices[attrib.faces[i + 2].v_idx], center);
                 drawFilledTriangle((int)round(transformedVertices[attrib.faces[i].v_idx][0] * 120) + WIDTH / 2, (int)round(transformedVertices[attrib.faces[i].v_idx][1] * -120) + HEIGHT / 2, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][0] * 120) + WIDTH / 2, (int)round(transformedVertices[attrib.faces[i + 1].v_idx][1] * -120) + HEIGHT / 2, (int)round(transformedVertices[attrib.faces[i + 2].v_idx][0] * 120) + WIDTH / 2, (int)round(transformedVertices[attrib.faces[i + 2].v_idx][1] * -120) + HEIGHT / 2, (lightValue << 8) + lightValue, (int)(center[2] * 120));
