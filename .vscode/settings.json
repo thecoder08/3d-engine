@@ -1,6 +1,9 @@
 {
     "files.associations": {
         "cmath": "c",
-        "drawing.h": "c"
+        "drawing.h": "c",
+        "tinyobj_loader_c.h": "c",
+        "window.h": "c",
+        "math.h": "c"
     }
 }
