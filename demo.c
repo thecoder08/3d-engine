@@ -4,9 +4,6 @@
 #include <xgfx/window.h>
 #include <stdio.h>
 
-#define EVENT_BUFFER_SIZE 100
-XEvent eventBuffer[EVENT_BUFFER_SIZE];
-
 int main(int argc, char** argv) {
     vec3* vertices;
     int numVertices;
@@ -32,60 +29,39 @@ int main(int argc, char** argv) {
         printf("Failed to load object file!\n");
         return 1;
     }
-    initEngine(640, 480, "3D Engine", lightPosition, lightIntensity);
+    initEngine(1000, 1000, "3D Engine", lightPosition, lightIntensity);
     while(1) {
-        int eventsRead = checkWindowEvents(eventBuffer, EVENT_BUFFER_SIZE);
-        for (int i = 0; i < eventsRead; i++) {
-            XEvent event = eventBuffer[i];
-            if (event.type == ClosedWindow) {
+        Event event;
+        while (checkWindowEvent(&event)) {
+            if (event.type == WINDOW_CLOSE) {
                 return 0;
             }
-            if (event.type == KeyPress) {
-                if (event.xkey.keycode == 111) {
-                    upPressed = 1;
+            if (event.type == KEY_CHANGE) {
+                if (event.keychange.key == 103) {
+                    upPressed = event.keychange.state;
                 }
-                if (event.xkey.keycode == 116) {
-                    downPressed = 1;
+                if (event.keychange.key == 108) {
+                    downPressed = event.keychange.state;
                 }
-                if (event.xkey.keycode == 113) {
-                    leftPressed = 1;
+                if (event.keychange.key == 105) {
+                    leftPressed = event.keychange.state;
                 }
-                if (event.xkey.keycode == 114) {
-                    rightPressed = 1;
+                if (event.keychange.key == 106) {
+                    rightPressed = event.keychange.state;
                 }
-                if (event.xkey.keycode == 110) {
-                    homePressed = 1;
+                if (event.keychange.key == 102) {
+                    homePressed = event.keychange.state;
                 }
-                if (event.xkey.keycode == 115) {
-                    endPressed = 1;
+                if (event.keychange.key == 107) {
+                    endPressed = event.keychange.state;
                 }
-                if (event.xkey.keycode == 9) {
+                if (event.keychange.key == 1 && event.keychange.state) {
                     if (wireframe) {
                         wireframe = 0;
                     }
                     else {
                         wireframe = 1;
                     }
-                }
-            }
-            if (event.type == KeyRelease) {
-                if (event.xkey.keycode == 111) {
-                    upPressed = 0;
-                }
-                if (event.xkey.keycode == 116) {
-                    downPressed = 0;
-                }
-                if (event.xkey.keycode == 113) {
-                    leftPressed = 0;
-                }
-                if (event.xkey.keycode == 114) {
-                    rightPressed = 0;
-                }
-                if (event.xkey.keycode == 110) {
-                    homePressed = 0;
-                }
-                if (event.xkey.keycode == 115) {
-                    endPressed = 0;
                 }
             }
         }
@@ -112,10 +88,19 @@ int main(int argc, char** argv) {
                 angleX -= M_PI * 2;
         }
         if (angleY >= M_PI * 2) {
-                angleX -= M_PI * 2;
+                angleY -= M_PI * 2;
         }
         if (angleZ >= M_PI * 2) {
-                angleX -= M_PI * 2;
+                angleZ -= M_PI * 2;
+        }
+        if (angleX <= M_PI * 2) {
+                angleX += M_PI * 2;
+        }
+        if (angleY <= M_PI * 2) {
+                angleY += M_PI * 2;
+        }
+        if (angleZ <= M_PI * 2) {
+                angleZ += M_PI * 2;
         }
         mat3 rotationMatrixA;
         rotationMatrixXYZ(angleX, angleY, angleZ, rotationMatrixA);

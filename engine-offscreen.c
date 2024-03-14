@@ -1,8 +1,6 @@
-#include "engine.h"
+#include "engine-offscreen.h"
 #define TINYOBJ_LOADER_C_IMPLEMENTATION 1
 #include "tinyobj_loader_c.h"
-#include <xgfx/window.h>
-#include <xgfx/drawing.h>
 #define __USE_MISC 1
 #include <math.h>
 #include <sys/mman.h>
@@ -12,9 +10,40 @@
 
 static int width;
 static int height;
-static int* depthBuffer;
+static int *depthBuffer;
+static int *fb;
 static vec3 lightPosition;
 static int lightIntensity;
+
+void plot(int x, int y, int color) {
+    color = 0xff000000 + ((color & 0x00ff0000)>>16) + (color & 0x0000ff00) + ((color & 0x000000ff)<<16);
+  if (x >= 0 && x < width && y >= 0 && y < height) {
+    fb[y*width + x] = color;
+  }
+}
+
+void rectangle(int x, int y, int width, int height, int color) {
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      plot(x + j, y + i, color);
+    }
+  }
+}
+
+void line(int x0, int y0, int x1, int y1, int color) {
+   int dx = abs(x1 - x0);
+   int dy = abs(y1 - y0);
+   int sx = (x0 < x1) ? 1 : -1;
+   int sy = (y0 < y1) ? 1 : -1;
+   int err = dx - dy;
+   while(1) {
+      plot(x0, y0, color);
+      if ((x0 == x1) && (y0 == y1)) break;
+      int e2 = 2*err;
+      if (e2 > -dy) { err -= dy; x0  += sx; }
+      if (e2 < dx) { err += dx; y0  += sy; }
+   }
+}
 
 // the below is from the tinyobjectloader-c on github
 static void get_file_data(void* ctx, const char* filename, const int is_mtl,
@@ -115,10 +144,10 @@ static void triCenter(vec3 a, vec3 b, vec3 c, vec3 center) {
     center[2] = (a[2] + b[2] + c[2]) / 3;
 }
 
-void initEngine(int widthArg, int heightArg, const char* title, vec3 lightPositionArg, int lightIntensityArg) {
+void initEngine(int* framebuffer, int widthArg, int heightArg, const char* title, vec3 lightPositionArg, int lightIntensityArg) {
+    fb = framebuffer;
     width = widthArg;
     height = heightArg;
-    initWindow(width, height, title);
     depthBuffer = malloc(width * height * sizeof(int));
     memcpy(lightPosition, lightPositionArg, sizeof(vec3)); //{2, 2, -2};
     lightIntensity = lightIntensityArg; //2;
@@ -212,8 +241,7 @@ void renderObject(vec3* vertexBuffer, int vertexBufferLength, int* indexBuffer, 
     }
 }
 
-void updateWindow3D() {
-    updateWindow();
+void clear3D() {
     rectangle(0, 0, 640, 480, 0x00000000);
     for (int i=0; i<width*height; ++i) depthBuffer[i] = 0x7fffffff;
 }
