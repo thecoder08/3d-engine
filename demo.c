@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
         printf("Failed to load object file!\n");
         return 1;
     }
-    initEngine(1000, 1000, "3D Engine", lightPosition, lightIntensity);
+    initEngine(640, 480, "3D Engine", lightPosition, lightIntensity);
     while(1) {
         Event event;
         while (checkWindowEvent(&event)) {

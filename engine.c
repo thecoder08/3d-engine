@@ -214,6 +214,6 @@ void renderObject(vec3* vertexBuffer, int vertexBufferLength, int* indexBuffer, 
 
 void updateWindow3D() {
     updateWindow();
-    rectangle(0, 0, 640, 480, 0x00000000);
+    rectangle(0, 0, width, height, 0x00000000);
     for (int i=0; i<width*height; ++i) depthBuffer[i] = 0x7fffffff;
 }
