@@ -57,6 +57,13 @@ float dot(vec3 a, vec3 b) {
     return a[0]*b[0] + a[1]*b[1];
 }
 
+void normalize(vec3 vector) {
+    float length = sqrtf(vector[0]*vector[0] + vector[1]*vector[1] + vector[2]*vector[2]);
+    vector[0] /= length;
+    vector[1] /= length;
+    vector[2] /= length;
+}
+
 void getColor(vec3 a, vec3 v1color, vec3 b, vec3 v2color, vec3 c, vec3 v3color, vec3 p, vec3 color) {
     vec3 v0;
     v0[0] = b[0] - a[0];
@@ -124,7 +131,7 @@ void initEngine(int widthArg, int heightArg, const char* title, vec3 lightPositi
     lightIntensity = lightIntensityArg; //2;
 }
 
-int loadObj(const char* filename, vec3** vertices, int* numVertices, int** indices, int* numIndices) {
+int loadObj(const char* filename, int* numMaterials, vec3** colors, vec3*** vertexPositions, vec3*** vertexNormals, int** numVertices) {
     // loads the specified object file
     tinyobj_attrib_t attrib;
     tinyobj_shape_t* shapes = NULL;
@@ -135,79 +142,128 @@ int loadObj(const char* filename, vec3** vertices, int* numVertices, int** indic
     if (tinyobj_parse_obj(&attrib, &shapes, &num_shapes, &materials, &num_materials, filename, get_file_data, NULL, flags) != TINYOBJ_SUCCESS) {
         return 1;
     }
-    *vertices = malloc(attrib.num_vertices * sizeof(vec3));
-    *indices = malloc(attrib.num_faces * sizeof(tinyobj_vertex_index_t));
-    for (int i = 0; i < attrib.num_vertices; i++) {
-        (*vertices)[i][0] = attrib.vertices[i * 3];
-        (*vertices)[i][1] = attrib.vertices[i * 3 + 1];
-        (*vertices)[i][2] = attrib.vertices[i * 3 + 2];
+    if (num_materials == 0) { // default material; cyan color
+        num_materials = 1;
+        materials = malloc(sizeof(tinyobj_material_t));
+        materials[0].diffuse[0] = 0;
+        materials[0].diffuse[1] = 1;
+        materials[0].diffuse[2] = 1;
+        attrib.material_ids = calloc(attrib.num_faces, sizeof(int));
     }
-    for (int i = 0; i < attrib.num_faces; i++) {
-        (*indices)[i] = attrib.faces[i].v_idx;
+    *numMaterials = num_materials;
+    printf("%s has %ld materials\n", filename, num_materials);
+    printf("%s has %d faces\n", filename, attrib.num_face_num_verts);
+    printf("%s has %d vertices\n", filename, attrib.num_vertices);
+    
+    *colors = malloc(num_materials * sizeof(vec3));
+    *numVertices = malloc(num_materials * sizeof(int));
+    *vertexPositions = malloc(num_materials * sizeof(vec3**));
+    *vertexNormals = malloc(num_materials * sizeof(vec3**));
+    for (int i = 0; i < num_materials; i++) {
+        (*colors)[i][0] = materials[i].diffuse[0];
+        (*colors)[i][1] = materials[i].diffuse[1];
+        (*colors)[i][2] = materials[i].diffuse[2];
+
+        int verticesUsing = 0;
+        for (int j = 0; j < attrib.num_face_num_verts; j++) {
+            if (attrib.material_ids[j] == i) {
+                verticesUsing += 3; // this may need to be += 3
+            }
+        }
+        (*numVertices)[i] = verticesUsing;
+
+        int foundIndex = 0;
+        (*vertexPositions)[i] = malloc(verticesUsing * sizeof(vec3));
+        (*vertexNormals)[i] = malloc(verticesUsing * sizeof(vec3));
+        for (int j = 0; j < attrib.num_face_num_verts; j++) {
+            if (attrib.material_ids[j] == i) {
+                for (int k = 0; k < 3; k++) {
+                    (*vertexPositions)[i][foundIndex][0] = attrib.vertices[attrib.faces[j * 3 + k].v_idx * 3];
+                    (*vertexPositions)[i][foundIndex][1] = attrib.vertices[attrib.faces[j * 3 + k].v_idx * 3 + 1];
+                    (*vertexPositions)[i][foundIndex][2] = attrib.vertices[attrib.faces[j * 3 + k].v_idx * 3 + 2];
+                    if (attrib.num_normals > 0) {
+                        (*vertexNormals)[i][foundIndex][0] = attrib.normals[attrib.faces[j * 3 + k].vn_idx * 3];
+                        (*vertexNormals)[i][foundIndex][1] = attrib.normals[attrib.faces[j * 3 + k].vn_idx * 3 + 1];
+                        (*vertexNormals)[i][foundIndex][2] = attrib.normals[attrib.faces[j * 3 + k].vn_idx * 3 + 2];
+                    }
+                    else { // default normals: all the same direction
+                        (*vertexNormals)[i][foundIndex][0] = 1;
+                        (*vertexNormals)[i][foundIndex][1] = 0;
+                        (*vertexNormals)[i][foundIndex][2] = 0;
+                    }
+                    foundIndex++;
+                }
+            }
+        }
     }
-    *numVertices = attrib.num_vertices;
-    *numIndices = attrib.num_faces;
+
     return 0;
 }
 
-void renderObject(vec3* vertexBuffer, int vertexBufferLength, int* indexBuffer, int indexBufferLength, mat3 transformation, char wireframe) {
+void renderObject(vec3* vertexBuffer, vec3* vertexNormals, int vertexBufferLength, mat3 transformation, vec3 color, char wireframe) {
+    vec3 colors[vertexBufferLength];
     vec3 transformedVertices[vertexBufferLength];
     // transform vertices
     for (int i = 0; i < vertexBufferLength; i++) {
+        vec3 transformedNormal;
+        mul_vec3_mat3(vertexNormals[i], transformation, transformedNormal);
+
+        normalize(lightPosition);
+        float intensity = max(dot(transformedNormal, lightPosition), 0.3);
+        colors[i][0] = color[0] * intensity;
+        colors[i][1] = color[1] * intensity;
+        colors[i][2] = color[2] * intensity;
         mul_vec3_mat3(vertexBuffer[i], transformation, transformedVertices[i]);
+        //transformedVertices[i][0] *= 10;
+        //transformedVertices[i][1] *= 10;
+        //transformedVertices[i][2] *= 10;
     }
     // draw vertices
-    for (int i = 0; i < indexBufferLength; i += 3) {
+    for (int i = 0; i < vertexBufferLength; i += 3) {
         if (wireframe) {
-            line((int)round(transformedVertices[indexBuffer[i]][0] * 120) + width / 2, (int)round(transformedVertices[indexBuffer[i]][1] * -120) + height / 2, (int)round(transformedVertices[indexBuffer[i + 1]][0] * 120) + width / 2, (int)round(transformedVertices[indexBuffer[i + 1]][1] * -120) + height / 2, 0x0000ffff);
-            line((int)round(transformedVertices[indexBuffer[i]][0] * 120) + width / 2, (int)round(transformedVertices[indexBuffer[i]][1] * -120) + height / 2, (int)round(transformedVertices[indexBuffer[i + 2]][0] * 120) + width / 2, (int)round(transformedVertices[indexBuffer[i + 2]][1] * -120) + height / 2, 0x0000ffff);
-            line((int)round(transformedVertices[indexBuffer[i + 2]][0] * 120) + width / 2, (int)round(transformedVertices[indexBuffer[i + 2]][1] * -120) + height / 2, (int)round(transformedVertices[indexBuffer[i + 1]][0] * 120) + width / 2, (int)round(transformedVertices[indexBuffer[i + 1]][1] * -120) + height / 2, 0x0000ffff);
+            line((int)round(transformedVertices[i][0] * 120) + width / 2, (int)round(transformedVertices[i][1] * -120) + height / 2, (int)round(transformedVertices[i + 1][0] * 120) + width / 2, (int)round(transformedVertices[i + 1][1] * -120) + height / 2, (unsigned int)(color[2]*255) + ((unsigned int)(color[1]*255)<<8) + ((unsigned int)(color[0]*255)<<16));
+            line((int)round(transformedVertices[i][0] * 120) + width / 2, (int)round(transformedVertices[i][1] * -120) + height / 2, (int)round(transformedVertices[i + 2][0] * 120) + width / 2, (int)round(transformedVertices[i + 2][1] * -120) + height / 2, (unsigned int)(color[2]*255) + ((unsigned int)(color[1]*255)<<8) + ((unsigned int)(color[0]*255)<<16));
+            line((int)round(transformedVertices[i + 2][0] * 120) + width / 2, (int)round(transformedVertices[i + 2][1] * -120) + height / 2, (int)round(transformedVertices[i + 1][0] * 120) + width / 2, (int)round(transformedVertices[i + 1][1] * -120) + height / 2, (unsigned int)(color[2]*255) + ((unsigned int)(color[1]*255)<<8) + ((unsigned int)(color[0]*255)<<16));
         }
         else {
             float vertexLightValue1 = 0;
-            if ((int)round(distancef(lightPosition, transformedVertices[indexBuffer[i]]) * (100 / lightIntensity)) <= 255) {
-                vertexLightValue1 = 255 - (unsigned char)round(distancef(lightPosition, transformedVertices[indexBuffer[i]]) * (100 / lightIntensity));
+            if ((int)round(distancef(lightPosition, transformedVertices[i]) * (100 / lightIntensity)) <= 255) {
+                vertexLightValue1 = 255 - (unsigned char)round(distancef(lightPosition, transformedVertices[i]) * (100 / lightIntensity));
             }
             vec3 color1;
             color1[0] = 0;
             color1[1] = vertexLightValue1/255;
             color1[2] = vertexLightValue1/255;
             float vertexLightValue2 = 0;
-            if ((int)round(distancef(lightPosition, transformedVertices[indexBuffer[i + 1]]) * (100 / lightIntensity)) <= 255) {
-                vertexLightValue2 = 255 - (unsigned char)round(distancef(lightPosition, transformedVertices[indexBuffer[i + 1]]) * (100 / lightIntensity));
+            if ((int)round(distancef(lightPosition, transformedVertices[i + 1]) * (100 / lightIntensity)) <= 255) {
+                vertexLightValue2 = 255 - (unsigned char)round(distancef(lightPosition, transformedVertices[i + 1]) * (100 / lightIntensity));
             }
             vec3 color2;
             color2[0] = 0;
             color2[1] = vertexLightValue2/255;
             color2[2] = vertexLightValue2/255;
             float vertexLightValue3 = 0;
-            if ((int)round(distancef(lightPosition, transformedVertices[indexBuffer[i + 2]]) * (100 / lightIntensity)) <= 255) {
-                vertexLightValue3 = 255 - (unsigned char)round(distancef(lightPosition, transformedVertices[indexBuffer[i + 2]]) * (100 / lightIntensity));
+            if ((int)round(distancef(lightPosition, transformedVertices[i + 2]) * (100 / lightIntensity)) <= 255) {
+                vertexLightValue3 = 255 - (unsigned char)round(distancef(lightPosition, transformedVertices[i + 2]) * (100 / lightIntensity));
             }
             vec3 color3;
             color3[0] = 0;
             color3[1] = vertexLightValue3/255;
             color3[2] = vertexLightValue3/255;
 
-            if (indexBuffer[i] == 0) {
-                color1[0] = 1;
-                color1[1] = 0;
-                color1[2] = 0;
-            }
-            if (indexBuffer[i + 1] == 0) {
-                color2[0] = 1;
-                color2[1] = 0;
-                color2[2] = 0;
-            }
-            if (indexBuffer[i + 2] == 0) {
-                color3[0] = 1;
-                color3[1] = 0;
-                color3[2] = 0;
-            }
+            color1[0] = 1;
+            color1[1] = 1;
+            color1[2] = 0;
+            color2[0] = 0;
+            color2[1] = 1;
+            color2[2] = 1;
+            color3[0] = 1;
+            color3[1] = 0;
+            color3[2] = 1;
 
             vec3 center;
-            triCenter(transformedVertices[indexBuffer[i]], transformedVertices[indexBuffer[i + 1]], transformedVertices[indexBuffer[i + 2]], center);
-            drawTriangle(transformedVertices[indexBuffer[i]], color1, transformedVertices[indexBuffer[i + 1]], color2, transformedVertices[indexBuffer[i + 2]], color3, (int)(center[2] * 120));
+            triCenter(transformedVertices[i], transformedVertices[i + 1], transformedVertices[i + 2], center);
+            drawTriangle(transformedVertices[i], colors[i], transformedVertices[i + 1], colors[i + 1], transformedVertices[i + 2], colors[i + 2], (int)(center[2] * 120));
         }
     }
 }

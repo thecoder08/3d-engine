@@ -4,6 +4,7 @@
         "drawing.h": "c",
         "tinyobj_loader_c.h": "c",
         "window.h": "c",
-        "math.h": "c"
+        "math.h": "c",
+        "rotate.h": "c"
     }
 }

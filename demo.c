@@ -5,10 +5,11 @@
 #include <stdio.h>
 
 int main(int argc, char** argv) {
-    vec3* vertices;
-    int numVertices;
-    int* indices;
-    int numIndices;
+    vec3** vertices;
+    vec3** vertexNormals;
+    int numMaterials;
+    int* numVertices;
+    vec3* colors;
     float angleX = 0;
     float angleY = 0;
     float angleZ = 0;
@@ -19,13 +20,13 @@ int main(int argc, char** argv) {
     int homePressed = 0;
     int endPressed = 0;
     int wireframe = 0;
-    vec3 lightPosition = {2, 2, -2};
+    vec3 lightPosition = {2, 2, 2};
     int lightIntensity = 2;
     if (argc < 2) {
         printf("You must provide an object argument!\n");
         return 1;
     }
-    if (loadObj(argv[1], &vertices, &numVertices, &indices, &numIndices)) {
+    if (loadObj(argv[1], &numMaterials, &colors, &vertices, &vertexNormals, &numVertices)) {
         printf("Failed to load object file!\n");
         return 1;
     }
@@ -104,7 +105,9 @@ int main(int argc, char** argv) {
         }
         mat3 rotationMatrixA;
         rotationMatrixXYZ(angleX, angleY, angleZ, rotationMatrixA);
-        renderObject(vertices, numVertices, indices, numIndices, rotationMatrixA, wireframe);
+        for (int i = 0; i < numMaterials; i++) {
+            renderObject(vertices[i], vertexNormals[i], numVertices[i], rotationMatrixA, colors[i], wireframe);
+        }
         updateWindow3D();
     }
 }
