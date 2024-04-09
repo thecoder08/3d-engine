@@ -5,9 +5,8 @@
 #include <xgfx/drawing.h>
 #define __USE_MISC 1
 #include <math.h>
-#include <sys/mman.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <fcntl.h>
 
 static int width;
@@ -37,7 +36,9 @@ static void get_file_data(void* ctx, const char* filename, const int is_mtl,
 
   fstat(fd, &sb);
 
-  (*data) = (char*)mmap(0, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+  (*data) = malloc(sb.st_size);
+  read(fd, *data, sb.st_size);
+
 
   (*len) = sb.st_size;
 }
