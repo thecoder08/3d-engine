@@ -55,7 +55,7 @@ float edgeFunction(vec3 a, vec3 b, vec3 c) {
 }
 
 float dot(vec3 a, vec3 b) {
-    return a[0]*b[0] + a[1]*b[1];
+    return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
 }
 
 void normalize(vec3 vector) {

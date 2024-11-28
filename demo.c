@@ -20,8 +20,8 @@ int main(int argc, char** argv) {
     int homePressed = 0;
     int endPressed = 0;
     int wireframe = 0;
-    vec3 lightPosition = {2, 2, 2};
-    int lightIntensity = 2;
+    vec3 lightPosition = {1, 1, -1};
+    int lightIntensity = 1;
     if (argc < 2) {
         printf("You must provide an object argument!\n");
         return 1;
