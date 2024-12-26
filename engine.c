@@ -95,8 +95,8 @@ void getColor(vec3 a, vec3 v1color, vec3 b, vec3 v2color, vec3 c, vec3 v3color, 
 }
 
 void drawTriangle(vec3 v1, vec3 color1, vec3 v2, vec3 color2, vec3 v3, vec3 color3, int depth) {
-    for (int i = min(min(v1[1]*(-120)+(height/2), v2[1]*(-120)+(height/2)), v3[1]*(-120)+(height/2)); i < max(max(v1[1]*(-120)+(height/2), v2[1]*(-120)+(height/2)), v3[1]*(-120)+(height/2)); i++) {
-        for (int j = min(min(v1[0]*120+(width/2), v2[0]*120+(width/2)), v3[0]*120+(width/2)); j < max(max(v1[0]*120+(width/2), v2[0]*120+(width/2)), v3[0]*120+(width/2)); j++) {
+    for (int i = max(max(v1[1], v2[1]), v3[1])*(-120)+(height/2); i < min(min(v1[1], v2[1]), v3[1])*(-120)+(height/2); i++) {
+        for (int j = min(min(v1[0], v2[0]), v3[0])*120+(width/2); j < max(max(v1[0], v2[0]), v3[0])*120+(width/2); j++) {
             //plot(j, i, 0x00808080);
             if (i < 0 || i >= height || j < 0 || j >= width) {
                 continue;
