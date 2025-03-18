@@ -1,6 +1,8 @@
 # 3D Engine
 This is a little "3D Engine" that is able to render 3D meshes. It's a software renderer written in C. It uses [libxgfx](https://github.com/thecoder08/xgfx) to display to a window.
 
+![Curling rock](https://github.com/thecoder08/3d-engine/blob/master/rock.png?raw=true)
+
 If you want to view a .obj mesh, Build the project with the command:
 ```sh
 make demo
